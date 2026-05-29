@@ -24,7 +24,14 @@ devices = {}
 
 @app.route("/api/gps", methods=["POST"])
 def receive_gps():
-    """ESP8266 pushes GPS data here every 3 seconds."""
+    """ESP8266 pushes GPS data here every 3 seconds.
+
+    Accepts BOTH naming conventions so the firmware can use short field
+    names (sats, valid, alt) without the backend losing data:
+        sats      | satellites
+        valid     | gps_fixed
+        alt       | altitude
+    """
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data"}), 400
@@ -32,16 +39,16 @@ def receive_gps():
     device_id = data.get("device_id", "unknown")
 
     if device_id not in devices:
-        devices[device_id] = {"command": "none"}
+        devices[device_id] = {"command": "none", "relay_state": "on"}
 
     devices[device_id].update({
         "lat":         data.get("lat", 0.0),
         "lng":         data.get("lng", 0.0),
         "speed":       data.get("speed", 0.0),
-        "altitude":    data.get("altitude", 0.0),
-        "satellites":  data.get("satellites", 0),
-        "gps_fixed":   data.get("gps_fixed", False),
-        "relay_state": data.get("relay_state", "on"),
+        "altitude":    data.get("alt",   data.get("altitude", 0.0)),
+        "satellites":  data.get("sats",  data.get("satellites", 0)),
+        "gps_fixed":   data.get("valid", data.get("gps_fixed", False)),
+        "relay_state": data.get("relay_state", devices[device_id].get("relay_state", "on")),
         "last_seen":   datetime.now(timezone.utc).isoformat(),
     })
 
